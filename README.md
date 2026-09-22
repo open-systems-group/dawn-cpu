@@ -23,7 +23,7 @@ We provide a scaffold for a custom kintex ultrascale+ devboard. We also have tes
 
 
 ## Contributing
-If you'd link to contribute, [join the MIT OpenCompute discord](https://discord.gg/jwgPXeFN7C) and reach out to us there!
+If you'd link to contribute, [join the Open Systems Group discord](https://discord.gg/nJFy65p2NC) and reach out to us there!
 
 ## License
 
