@@ -23,11 +23,11 @@ We provide a scaffold for a custom kintex ultrascale+ devboard. We also have tes
 
 
 ## Contributing
-If you'd link to contribute, [join the Open Systems Group discord](https://discord.gg/nJFy65p2NC) and reach out to us there!
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to report bugs, propose features, and open pull requests. Ask questions on the [Open Systems Group Discord](https://discord.gg/nJFy65p2NC).
 
 ## License
 
-[MIT](https://raw.githubusercontent.com/MIT-OpenCompute/dawn-cpu/refs/heads/main/LICENSE)
+[MIT](LICENSE)
 
 ---
 
