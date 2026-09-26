@@ -1,0 +1,76 @@
+name: Performance issue
+description: The core takes more cycles than expected, a change made it slower, or the Verilator simulation runs slower than it should.
+labels: ["topic: perf"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Core performance (how many cycles a program takes) and simulation speed (how many cycles per second Verilator runs) are separate problems. Pick the one you are reporting below.
+        If the core produces a wrong result, use the **Bug report** template instead.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is slow?
+      options:
+        - Core performance (cycles, IPC, CoreMark)
+        - Simulation speed (the kHz figure printed by the simulator)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this hasn't been reported.
+          required: true
+        - label: I measured on the latest `main`.
+          required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit measured
+      description: Output of `git rev-parse HEAD`.
+    validations:
+      required: true
+
+  - type: input
+    id: baseline
+    attributes:
+      label: Baseline commit
+      description: For a regression, the last commit where performance was as expected. Leave empty if there is no earlier baseline.
+
+  - type: textarea
+    id: measurement
+    attributes:
+      label: Measurement
+      description: |
+        The command you ran, including the cycle limit, and the numbers before and after.
+        For core performance, give a number that does not depend on the host machine: cycles to finish a program, how far `mandelbrot.c` renders within a fixed cycle limit, or CoreMark/MHz.
+        For simulation speed, paste the simulator's final `Ran N cycles in Xs (Y kHz)` line.
+      placeholder: |
+        ./scripts/simulate.sh ./programs/mandelbrot.c 5000000
+        main (abc1234): …
+        this commit (def5678): …
+    validations:
+      required: true
+
+  - type: textarea
+    id: analysis
+    attributes:
+      label: Suspected cause
+      description: Optional. The unit you suspect (branch predictor, IDQ, ROB, caches, memory latency, …) and any evidence, such as a waveform showing stalls.
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Simulation settings
+      description: Settings that change the numbers. Memory latency and `RANDOMIZE_LATENCY` affect core performance; `DAWN_PGO`, `DAWN_ARCH` and the host CPU affect simulation speed only.
+      value: |
+        - Memory latency (`READ_LATENCY_CYCLES` / `WRITE_LATENCY_CYCLES`):
+        - `RANDOMIZE_LATENCY`:
+        - Compiler flags for the program:
+        - `DAWN_PGO` / `DAWN_ARCH` (simulation speed only):
+        - Host CPU and OS (simulation speed only):
