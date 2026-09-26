@@ -1,0 +1,104 @@
+name: Bug report
+description: The core does the wrong thing, such as a wrong result, a hang, a garbled frame, or a crash in simulation or on an FPGA.
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include enough for someone else to reproduce the bug with one command on the latest `main`.
+        For build or toolchain trouble, use the **Build / setup problem** template instead.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this hasn't been reported.
+          required: true
+        - label: I reproduced this on the latest `main`.
+          required: true
+        - label: This isn't one of the [known limitations](https://github.com/open-systems-group/dawn-cpu/blob/main/CONTRIBUTING.md#known-limitations), such as privileged instructions or CSRs.
+          required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse HEAD`.
+      placeholder: e95f2e0…
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      multiple: true
+      options:
+        - Verilator simulation
+        - FPGA (Saturn5P / Kintex US+)
+        - FPGA (Real Digital Urbana)
+        - FPGA (other, say which below)
+        - RTL generation (sbt / Chisel / firtool)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you see instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: |
+        The exact command(s), including the cycle limit. If you changed any sources or `simulate_program.cpp` settings, say what.
+      placeholder: |
+        ./scripts/generate-verilog.sh
+        ./scripts/simulate.sh ./my_test.c 2000000
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: program
+    attributes:
+      label: Test program
+      description: |
+        The smallest program that shows the bug. Paste short C or assembly here, or attach the source and `.bin`.
+        A program that prints or draws a pass/fail result is ideal.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference behavior
+      description: |
+        Optional but very helpful: does the program behave correctly on Spike, QEMU, or real RISC-V hardware? This shows whether the bug is in the core or the program.
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, whether you use the Nix flake, and tool versions.
+      value: |
+        - OS:
+        - Nix flake: yes / no
+        - `verilator --version`:
+        - `sbt --version`:
+        - `java -version`:
+        - RISC-V GCC:
+    validations:
+      required: true
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Logs, waveforms, frames
+      description: |
+        Attach simulator output, `generated/frame.png`, or a VCD/FST waveform as **files**. Don't paste long logs inline.

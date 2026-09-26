@@ -1,0 +1,70 @@
+name: Feature / design proposal
+description: Propose new microarchitecture, a peripheral, performance work, or tooling.
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything bigger than a small fix, agree on the design here (or on Discord) before writing code. Rough proposals are welcome; fill in what you know.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve, or what does it enable? Include numbers if you have them (IPC, FPGA utilization, Fmax).
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed design
+      description: |
+        How it would work: the affected units, interfaces between modules, sizes and latencies. Link papers or references if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and ideas to explore
+      description: Other approaches you considered or want to try, and their trade-offs.
+
+  - type: textarea
+    id: gating
+    attributes:
+      label: Parameters and gating
+      description: Can this be turned off or sized with a constructor parameter? What's the default?
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: How will it be verified?
+      description: Which programs or tests will show it works and doesn't break anything? What performance comparison against `main`?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ppa
+    attributes:
+      label: Expected impact
+      multiple: true
+      options:
+        - Performance (IPC)
+        - FPGA utilization / area
+        - Timing (Fmax)
+        - Functionality / ISA coverage
+        - Tooling / developer experience
+
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions
+      description: Anything you'd like input on before starting.
+
+  - type: checkboxes
+    id: volunteer
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to implement this myself.
