@@ -38,10 +38,7 @@ class DecodeStage() extends Module {
     val io = IO(new Bundle {
         val next_ready = Input(Bool())
 
-        val instruction = Input(UInt(32.W))
-        val instruction_pointer = Input(UInt(32.W))
-        val predicted_instruction_pointer = Input(UInt(32.W))
-        val valid = Input(Bool())
+        val fetch_result = Output(Valid(new FetchResult()))
 
         val reorder_buffer_head = Input(UInt(8.W))
 
@@ -54,7 +51,7 @@ class DecodeStage() extends Module {
     })
 
     val decoder = Module(new Decoder())
-    decoder.io.instruction := io.instruction
+    decoder.io.instruction := io.fetch_result.instruction
 
     val rs1 = RegInit(0.U(5.W))
     val rs2 = RegInit(0.U(5.W))
@@ -101,7 +98,7 @@ class DecodeStage() extends Module {
     io.next_instruction.write_mode := write_mode
     io.next_instruction.instruction_pointer := instruction_pointer
     io.next_instruction.pe_type := pe_type
-    io.next_instruction.inst :=RegNext(io.instruction)
+    io.next_instruction.inst := RegNext(io.instruction)
     io.next_valid := valid
 
     when(io.next_ready) {
@@ -138,7 +135,7 @@ class DecodeStage() extends Module {
 
             is("b0110011".U) { // REGISTER MATH
                 pe_type := PeType.Alu
-                when(decoder.io.func7 === "b0000001".U){
+                when(decoder.io.func7 === "b0000001".U) {
                     pe_type := PeType.Malu
                 }
                 write_mode := WriteMode.Register
@@ -165,7 +162,7 @@ class DecodeStage() extends Module {
             is("b1101111".U) { // JAL
                 pe_type := PeType.JumpUnit
                 write_mode := WriteMode.Register
-                
+
                 when(decoder.io.rd === 0.U) {
                     write_mode := WriteMode.None
                 }

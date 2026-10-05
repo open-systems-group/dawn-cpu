@@ -4,6 +4,12 @@ import chisel3._
 import _root_.circt.stage.ChiselStage
 import scala.math._
 
+class FetchResult extends Bundle {
+    val instruction = Output(UInt(32.W))
+    val instruction_pointer = Output(UInt(32.W))
+    val predicted_instruction_pointer = Output(UInt(32.W))
+}
+
 class FetchStage() extends Module {
     val io = IO(new Bundle {
         val next_ready = Input(Bool())
@@ -17,10 +23,7 @@ class FetchStage() extends Module {
         val memory_read_value = Input(UInt(32.W))
         val memory_read_valid = Input(Bool())
 
-        val next_instruction = Output(UInt(32.W))
-        val next_instruction_pointer = Output(UInt(32.W))
-        val next_predicted_instruction_pointer = Output(UInt(32.W))
-        val next_valid = Output(Bool())
+        val fetch_result = Output(Valid(new FetchResult()))
 
         val flush = Input(Bool())
 
@@ -37,16 +40,16 @@ class FetchStage() extends Module {
     val next_valid = RegInit(false.B)
     val ignore_next_response = RegInit(false.B)
 
-    io.next_instruction := next_instruction
-    io.next_instruction_pointer := next_instruction_pointer
-    io.next_predicted_instruction_pointer := next_predicted_instruction_pointer
-    io.next_valid := next_valid
+    io.fetch_result.instruction := next_instruction
+    io.fetch_result.instruction_pointer := next_instruction_pointer
+    io.fetch_result.predicted_instruction_pointer := next_predicted_instruction_pointer
+    io.fetch_result.valid := next_valid
 
     when(io.memory_read_valid && !ignore_next_response) {
-        io.next_instruction := io.memory_read_value
-        io.next_instruction_pointer := requested_program_pointer
-        io.next_predicted_instruction_pointer := predicted_program_pointer
-        io.next_valid := true.B
+        io.fetch_result.instruction := io.memory_read_value
+        io.fetch_result.instruction_pointer := requested_program_pointer
+        io.fetch_result.predicted_instruction_pointer := predicted_program_pointer
+        io.fetch_result.valid := true.B
 
         next_instruction := io.memory_read_value
         next_instruction_pointer := requested_program_pointer
@@ -86,7 +89,7 @@ class FetchStage() extends Module {
         next_valid := false.B
 
         ignore_next_response := (memory_request_inflight && !io.memory_read_valid) ||
-  request_memory
+            request_memory
     }
 
     // printf("[FETCH]: pointer: %d ignoring? %b valid? %b\n", io.program_pointer, ignore_next_response, io.memory_read_valid)
