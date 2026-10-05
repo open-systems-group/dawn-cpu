@@ -1,6 +1,7 @@
 package RISCV
 
 import chisel3._
+import chisel3.util._
 import _root_.circt.stage.ChiselStage
 import scala.math._
 
@@ -40,15 +41,15 @@ class FetchStage() extends Module {
     val next_valid = RegInit(false.B)
     val ignore_next_response = RegInit(false.B)
 
-    io.fetch_result.instruction := next_instruction
-    io.fetch_result.instruction_pointer := next_instruction_pointer
-    io.fetch_result.predicted_instruction_pointer := next_predicted_instruction_pointer
+    io.fetch_result.bits.instruction := next_instruction
+    io.fetch_result.bits.instruction_pointer := next_instruction_pointer
+    io.fetch_result.bits.predicted_instruction_pointer := next_predicted_instruction_pointer
     io.fetch_result.valid := next_valid
 
     when(io.memory_read_valid && !ignore_next_response) {
-        io.fetch_result.instruction := io.memory_read_value
-        io.fetch_result.instruction_pointer := requested_program_pointer
-        io.fetch_result.predicted_instruction_pointer := predicted_program_pointer
+        io.fetch_result.bits.instruction := io.memory_read_value
+        io.fetch_result.bits.instruction_pointer := requested_program_pointer
+        io.fetch_result.bits.predicted_instruction_pointer := predicted_program_pointer
         io.fetch_result.valid := true.B
 
         next_instruction := io.memory_read_value
@@ -91,6 +92,4 @@ class FetchStage() extends Module {
         ignore_next_response := (memory_request_inflight && !io.memory_read_valid) ||
             request_memory
     }
-
-    // printf("[FETCH]: pointer: %d ignoring? %b valid? %b\n", io.program_pointer, ignore_next_response, io.memory_read_valid)
 }

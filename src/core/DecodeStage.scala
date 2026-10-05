@@ -38,7 +38,7 @@ class DecodeStage() extends Module {
     val io = IO(new Bundle {
         val next_ready = Input(Bool())
 
-        val fetch_result = Output(Valid(new FetchResult()))
+        val fetch_result = Input(Valid(new FetchResult()))
 
         val reorder_buffer_head = Input(UInt(8.W))
 
@@ -51,7 +51,7 @@ class DecodeStage() extends Module {
     })
 
     val decoder = Module(new Decoder())
-    decoder.io.instruction := io.fetch_result.instruction
+    decoder.io.instruction := io.fetch_result.bits.instruction
 
     val rs1 = RegInit(0.U(5.W))
     val rs2 = RegInit(0.U(5.W))
@@ -74,9 +74,9 @@ class DecodeStage() extends Module {
         opcode := decoder.io.opcode
         func3 := decoder.io.func3
         func7 := decoder.io.func7
-        instruction_pointer := io.instruction_pointer
-        predicted_instruction_pointer := io.predicted_instruction_pointer
-        valid := io.valid && !io.flush
+        instruction_pointer := io.fetch_result.bits.instruction_pointer
+        predicted_instruction_pointer := io.fetch_result.bits.predicted_instruction_pointer
+        valid := io.fetch_result.valid && !io.flush
     }
 
     io.ready := io.next_ready
@@ -98,7 +98,7 @@ class DecodeStage() extends Module {
     io.next_instruction.write_mode := write_mode
     io.next_instruction.instruction_pointer := instruction_pointer
     io.next_instruction.pe_type := pe_type
-    io.next_instruction.inst := RegNext(io.instruction)
+    io.next_instruction.inst := RegNext(io.fetch_result.bits.instruction)
     io.next_valid := valid
 
     when(io.next_ready) {
