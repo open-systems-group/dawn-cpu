@@ -1,0 +1,83 @@
+name: FPGA / synthesis issue
+description: Synthesis or implementation fails, timing is not met, the design does not fit, or the core behaves differently on a board than in simulation.
+labels: ["area: fpga"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for problems with Vivado and the boards. If the core computes a wrong result in Verilator as well, use the **Bug report** template instead.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this hasn't been reported.
+          required: true
+        - label: I regenerated the RTL from this commit with `./scripts/generate-verilog.sh` and re-imported the files from `generated/` into the Vivado project before building.
+          required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse HEAD`.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: board
+    attributes:
+      label: Board
+      options:
+        - Saturn5P (Kintex UltraScale+ xcku5p, `Saturn5PScaffold`)
+        - Real Digital Urbana
+        - AMD Kria
+        - Other (say which below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where does it fail?
+      options:
+        - Synthesis
+        - Implementation (place and route)
+        - Timing not met
+        - Design does not fit (utilization)
+        - Bitstream generation or programming the FPGA
+        - Loading a program over UART (`./scripts/load.sh`)
+        - Runs, but behaves differently than in simulation
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: The error message or the observed behavior, and what you expected. For behavior that differs from simulation, give the program and what the board shows compared with `generated/frame.png`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: changes
+    attributes:
+      label: Changes to the FPGA project
+      description: Anything you changed from the committed project, such as the clock target, IP configuration, constraints, or top-level Verilog. Write "none" if you built it unchanged.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reports
+    attributes:
+      label: Reports
+      description: For timing or utilization problems, attach the Vivado timing summary (WNS and the failing path) and utilization report (LUTs, FFs, BRAM, DSP) as files.
+
+  - type: input
+    id: vivado
+    attributes:
+      label: Vivado version
+      placeholder: "2025.2 (the version the committed project was saved with)"
+    validations:
+      required: true

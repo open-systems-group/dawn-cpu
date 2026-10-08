@@ -1,0 +1,33 @@
+name: Documentation issue
+description: The README, CONTRIBUTING.md or a code comment is wrong, out of date, or missing something.
+labels: ["type: docs"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where
+      description: The file and section, or a link to the line.
+      placeholder: README.md, "Getting Started"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing?
+      description: Quote the text if it is wrong. If a command in the docs failed, paste the command and its output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
+      description: Optional. The corrected text, or what the docs should explain.
+
+  - type: checkboxes
+    id: volunteer
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to open a PR with the fix.

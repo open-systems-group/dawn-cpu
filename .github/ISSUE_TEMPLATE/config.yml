@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussion
+    url: https://discord.gg/nJFy65p2NC
+    about: Ask how to build or use Dawn, or discuss ideas, on the Open Systems Group Discord.
+  - name: Contributing guide
+    url: https://github.com/open-systems-group/dawn-cpu/blob/main/CONTRIBUTING.md
+    about: Read this before opening an issue or pull request.

@@ -1,0 +1,53 @@
+name: Build / setup problem
+description: You can't get the toolchain, Nix, sbt or Verilator working, or the simulator won't build or run.
+labels: ["type: build"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, re-check [Getting Started](https://github.com/open-systems-group/dawn-cpu#getting-started). Quick questions are often faster on [Discord](https://discord.gg/nJFy65p2NC). For Vivado and board problems, use the **FPGA / synthesis issue** template.
+
+  - type: dropdown
+    id: step
+    attributes:
+      label: Which step fails?
+      options:
+        - Nix flake / direnv
+        - RTL generation (`./scripts/generate-verilog.sh`)
+        - Compiling a program (RISC-V GCC)
+        - Building the simulator (Verilator)
+        - Running the simulator
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse HEAD`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and output
+      description: The exact command you ran and its full error output. Attach it as a file if it's long.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      value: |
+        - OS and architecture:
+        - Nix flake: yes / no
+        - `verilator --version`:
+        - `sbt --version`:
+        - `java -version`:
+        - RISC-V GCC (path/version):
+    validations:
+      required: true
