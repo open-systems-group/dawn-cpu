@@ -8,6 +8,7 @@ class L2Cache(lineWidth: Int = 128) extends Module {
     val req = Flipped(Decoupled(new MemLineReq(lineWidth)))
     val mem_resp_in = Output(UInt(lineWidth.W))
     val mem_valid_in = Output(Bool())
+
     val mem_req = Decoupled(new MemLineReq(lineWidth))
     val mem_resp = Input(UInt(lineWidth.W))
     val mem_valid = Input(Bool())
