@@ -34,6 +34,8 @@ class Core(physical_registers_log: Int = 7) extends Module {
     val registers = Module(new Registers(physical_registers_log))
     val fetch_stage = Module(new FetchStage())
     val decode_stage = Module(new DecodeStage())
+    val rename_stage = Module(new RenameStage(physical_registers_log))
+
     val read_stage = Module(new ReadStage())
     val instruction_dispatch_queue = Module(new InstructionDispatchQueue())
     val alu_pe = Module(new Alu)
@@ -103,10 +105,14 @@ class Core(physical_registers_log: Int = 7) extends Module {
     }
     program_pointer := next_program_pointer
 
-    decode_stage.io.next_ready := read_stage.io.ready
+    decode_stage.io.next_ready := rename_stage.io.ready
     decode_stage.io.fetch_result := fetch_stage.io.fetch_result
-    decode_stage.io.reorder_buffer_head := reorder_buffer.io.head
     decode_stage.io.flush := jump_unit.io.flush
+
+    rename_stage.io.next_ready := read_stage.io.ready
+    rename_stage.io.decoded_instruction := decode_stage.io.decoded_instruction
+    rename_stage.io.reorder_buffer_head := reorder_buffer.io.head
+    rename_stage.io.flush := jump_unit.io.flush
 
     read_stage.io.instruction := decode_stage.io.next_instruction
     read_stage.io.valid := decode_stage.io.next_valid

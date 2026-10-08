@@ -1,4 +1,5 @@
 package RISCV
+
 import chisel3._
 import chisel3.util._
 import _root_.circt.stage.ChiselStage
@@ -34,16 +35,27 @@ class InstructionBundle extends Bundle {
     val inst = UInt(32.W)
 }
 
+class DecodedInstruction extends Bundle {
+    val rs1 = UInt(5.W)
+    val rs2 = UInt(5.W)
+    val rd = UInt(5.W)
+    val immediate = UInt(32.W)
+    val opcode = UInt(7.W)
+    val func3 = UInt(3.W)
+    val func7 = UInt(7.W)
+    val write_mode = WriteMode()
+    val instruction_pointer = UInt(32.W)
+    val predicted_instruction_pointer = UInt(32.W)
+    val pe_type = PeType()
+}
+
 class DecodeStage() extends Module {
     val io = IO(new Bundle {
         val next_ready = Input(Bool())
 
         val fetch_result = Input(Valid(new FetchResult()))
 
-        val reorder_buffer_head = Input(UInt(8.W))
-
-        val next_instruction = Output(new InstructionBundle())
-        val next_valid = Output(Bool())
+        val decoded_instruction = Output(Valid(new DecodedInstruction()))
 
         val flush = Input(Bool())
 
@@ -80,26 +92,18 @@ class DecodeStage() extends Module {
     }
 
     io.ready := io.next_ready
-    io.next_instruction.rs1 := rs1
-    io.next_instruction.rs1_value := 0.U
-    io.next_instruction.rs1_dependence_counter := 0.U
-    io.next_instruction.rs2 := rs2
-    io.next_instruction.rs2_value := 0.U
-    io.next_instruction.rs2_dependence_counter := 0.U
-    io.next_instruction.rd := rd
-    io.next_instruction.rd_value := 0.U
-    io.next_instruction.rd_dependence_counter := 0.U
-    io.next_instruction.immediate := immediate
-    io.next_instruction.opcode := opcode
-    io.next_instruction.func3 := func3
-    io.next_instruction.func7 := func7
-    io.next_instruction.predicted_instruction_pointer := predicted_instruction_pointer
-    io.next_instruction.reorder_pointer := io.reorder_buffer_head
-    io.next_instruction.write_mode := write_mode
-    io.next_instruction.instruction_pointer := instruction_pointer
-    io.next_instruction.pe_type := pe_type
-    io.next_instruction.inst := RegNext(io.fetch_result.bits.instruction)
-    io.next_valid := valid
+    io.decoded_instruction.bits.rs1 := rs1
+    io.decoded_instruction.bits.rs2 := rs2
+    io.decoded_instruction.bits.rd := rd
+    io.decoded_instruction.bits.immediate := immediate
+    io.decoded_instruction.bits.opcode := opcode
+    io.decoded_instruction.bits.func3 := func3
+    io.decoded_instruction.bits.func7 := func7
+    io.decoded_instruction.bits.predicted_instruction_pointer := predicted_instruction_pointer
+    io.decoded_instruction.bits.write_mode := write_mode
+    io.decoded_instruction.bits.instruction_pointer := instruction_pointer
+    io.decoded_instruction.bits.pe_type := pe_type
+    io.decoded_instruction.valid := valid
 
     when(io.next_ready) {
         write_mode := WriteMode.None
