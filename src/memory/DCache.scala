@@ -78,7 +78,7 @@ class DCache( lineWidth: Int = 128) extends Module {
     val data_out = data_out_ways(hit_way)
     val meta_out = meta_out_ways(hit_way)
 
-    val policy =  RegInit(0.U(0.W))
+    val policy =  RegInit(0.U(log2Up(POLICYS).W))
     when(p_hit(1) > p_hit(0)) {
         policy :=1.U
     }.otherwise{
@@ -131,7 +131,7 @@ class DCache( lineWidth: Int = 128) extends Module {
     val words = VecInit((0 until LINE_WIDTH_WORDS).map(i => data_out(32*i + 31, 32*i)))
     when(access_counter === 0.U){
         for(i <- 0 until POLICYS) {
-            p_hit(i) <= p_hit(i) >> 2;
+            p_hit(i) := p_hit(i) >> 2
         }
     }.elsewhen(special0){
         when(state === CacheState.LOOKUP) {
@@ -351,6 +351,7 @@ class DCache( lineWidth: Int = 128) extends Module {
         when(meta_wr_en(w)) { meta_array(w).write(write_addr, meta_wr_data) }
     }
 
+   
 
     // when(false.B&&(io.start || state =/= CacheState.IDLE)) {
     //     printf(
