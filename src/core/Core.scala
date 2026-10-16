@@ -58,19 +58,7 @@ class Core() extends Module {
       jump_unit.io.instruction.rs1
       )
 }
-    when(io.execute){
-// printf("PP: %d Data: %x Stall %b MV %b MR %b | dec_rdy %b  rob_full %b idq_rdy %b\n",
-//   program_pointer, io.program_memory_value, fetch_stage.io.ready,
-//   io.program_memory_valid, io.program_memory_requested,
-//   decode_stage.io.ready,
-//   reorder_buffer.io.full, instruction_dispatch_queue.io.ready)    
-//   when(io.execute) {
-//   printf("  LSU: start %b dc_valid %b dc_rdy %b | lsu_rdy %b lsu_out_v %b |  idq_lsu_v %b\n",
-//     lsu_pe.io.dcache_start,io.dcache_valid, io.dcache_ready,
-//     lsu_pe.io.ready, lsu_pe.io.out_valid,
-//      instruction_dispatch_queue.io.lsu_out_valid)
-// }  // printf("R1: %x , R2 %x, R3 %x, R4 %x\n", registers.io.debug_1,registers.io.debug_2,registers.io.debug_3,registers.io.debug_4)
-    }
+ 
     io.program_memory_requested := fetch_stage.io.memory_read_requested
 
     registers.io.write_enable := reorder_buffer.io.write_mode === WriteMode.Register

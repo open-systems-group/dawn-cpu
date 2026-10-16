@@ -55,7 +55,6 @@ class Malu() extends Module {
 
 
     val isM   = io.instruction.opcode === "b0110011".U && io.instruction.func7  === "b0000001".U
-    val isDiv = io.instruction.func3(2)          
     val issue = ready && io.valid && isM
 
  
@@ -68,13 +67,7 @@ class Malu() extends Module {
     malu.io.start := issue
 
 
-    when(issue && !isDiv) {
-        result_inst  := io.instruction
-        result_value := malu.io.output
-        result_valid := true.B
-    }
-
-    when(issue && isDiv) {
+    when(issue) {
         inflight := io.instruction
         busy := true.B
     }

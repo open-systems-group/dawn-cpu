@@ -29,14 +29,14 @@ class DCache( lineWidth: Int = 128) extends Module {
 
     
     val CACHE_SETS = 256
-    val WAYS = 4
+    val WAYS = 2
     val LINE_WIDTH_WORDS = lineWidth/32
     val LOG_CACHE_SETS = log2Up(CACHE_SETS)
     val LOG_LINE_WIDTH_WORDS = log2Up(LINE_WIDTH_WORDS)
     val TAG_WIDTH = 32 - LOG_CACHE_SETS - LOG_LINE_WIDTH_WORDS - 2
     val LRU_WIDTH = 16
     val POLICYS = 2
-    val POLICY_TEST_INTERVAL = 6
+    val LOG_POLICY_TEST_INTERVAL = 6
 
     val byte_offset = Wire(UInt(2.W))
     val cache_index = Wire(UInt(LOG_CACHE_SETS.W))
@@ -79,6 +79,7 @@ class DCache( lineWidth: Int = 128) extends Module {
     val meta_out = meta_out_ways(hit_way)
 
     val policy =  RegInit(0.U(log2Up(POLICYS).W))
+    //NEED TO CHANGE IF MORE THAN 2 POLICY
     when(p_hit(1) > p_hit(0)) {
         policy :=1.U
     }.otherwise{
@@ -86,6 +87,8 @@ class DCache( lineWidth: Int = 128) extends Module {
     }
     
     val access_counter = RegInit(0.U(LRU_WIDTH.W))
+
+    when(io.start) { access_counter := access_counter + 1.U }
     val lfsr = if (WAYS == 1) 0.U else LFSR(16)(log2Up(WAYS) - 1, 0)
     val victim_way_reg = RegInit(0.U(log2Up(WAYS).W))
 
@@ -98,9 +101,20 @@ class DCache( lineWidth: Int = 128) extends Module {
                 val a_older = a._1 <= b._1
                 (Mux(a_older, a._1, b._1), Mux(a_older, a._2, b._2))
             }._2
-    val special0 = (raw_index(POLICY_TEST_INTERVAL-1,0) === 0.U)
-    val special1 = (raw_index(POLICY_TEST_INTERVAL-1,0) === 1.U)
-    val victim_sel = if (WAYS == 1) 0.U else Mux(special1 || special0, Mux(special1, lru_way, lfsr), Mux(policy === 1.U, lru_way, lfsr))
+
+
+    val policy_profiler =  VecInit(Seq.tabulate(POLICYS)(i => cache_index(LOG_POLICY_TEST_INTERVAL - 1, 0) === i.U))
+
+    val is_profiler = policy_profiler.asUInt.orR
+    val profile_policy = PriorityEncoder(policy_profiler)
+
+    val policy_victim = VecInit(lfsr, lru_way)                
+    val active_policy = Mux(is_profiler, profile_policy, policy)
+
+    val invalid_ways = VecInit(meta_out_ways.map(!_.valid))
+    val victim_sel =
+        if (WAYS == 1) 0.U
+        else Mux(invalid_ways.asUInt.orR, PriorityEncoder(invalid_ways), policy_victim(active_policy))
     val victim_way = if (WAYS == 1) 0.U else Mux(state === CacheState.LOOKUP, victim_sel, victim_way_reg)
     val evict_meta = meta_out_ways(victim_way)
     val evict_data = data_out_ways(victim_way)
@@ -129,11 +143,11 @@ class DCache( lineWidth: Int = 128) extends Module {
     io.line_addr := Cat(getLineAddr(current_mem_req.address), 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
 
     val words = VecInit((0 until LINE_WIDTH_WORDS).map(i => data_out(32*i + 31, 32*i)))
-    when(access_counter === 0.U){
+    when(io.start && access_counter.andR){
         for(i <- 0 until POLICYS) {
             p_hit(i) := p_hit(i) >> 2
         }
-    }.elsewhen(special0){
+    }.elsewhen(policy_profiler(0)){
         when(state === CacheState.LOOKUP) {
             when(hit) {
                 p_hit(0) := p_hit(0) + 1.S
@@ -141,7 +155,7 @@ class DCache( lineWidth: Int = 128) extends Module {
                  p_hit(0) := p_hit(0) -1.S
             }
         }
-    }.elsewhen(special1){
+    }.elsewhen(policy_profiler(1)){
         when(state === CacheState.LOOKUP) {
             when(hit) {
                 p_hit(1) := p_hit(1) +1.S
@@ -156,7 +170,6 @@ class DCache( lineWidth: Int = 128) extends Module {
                 current_mem_req := io.req
                 state := CacheState.LOOKUP
                 valid_cleared := true.B 
-                access_counter := access_counter + 1.U
             }
         }
 
@@ -202,11 +215,11 @@ class DCache( lineWidth: Int = 128) extends Module {
                     updated_line := new_lwords.asUInt
 
                     data_wr_en(hit_way) := true.B
-                    data_wr_data        := updated_line
+                    data_wr_data := updated_line
                     meta_wr_en(hit_way) := true.B
-                    meta_wr_data.valid  := true.B
-                    meta_wr_data.dirty  := true.B
-                    meta_wr_data.tag    := getTag(current_mem_req.address)
+                    meta_wr_data.valid := true.B
+                    meta_wr_data.dirty := true.B
+                    meta_wr_data.tag := getTag(current_mem_req.address)
                     meta_wr_data.last_time := access_counter
 
                     io.done := true.B
@@ -241,7 +254,7 @@ class DCache( lineWidth: Int = 128) extends Module {
                 when(evict_meta.valid && evict_meta.dirty) { 
                     wb_data_reg := evict_data
                     wb_addr_reg := Cat(evict_meta.tag, getIndex(current_mem_req.address), 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
-                    state       := CacheState.WRITEBACK
+                    state := CacheState.WRITEBACK
                     valid_cleared := false.B 
                 }.otherwise {            
                     state := CacheState.MISS
@@ -351,33 +364,5 @@ class DCache( lineWidth: Int = 128) extends Module {
         when(meta_wr_en(w)) { meta_array(w).write(write_addr, meta_wr_data) }
     }
 
-   
-
-    // when(false.B&&(io.start || state =/= CacheState.IDLE)) {
-    //     printf(
-    //         "DCACHE cycle: state=%d ready=%d done=%d miss=%d | req_v=%d req_w=%d req_op=%d req_addr=%x req_data=%x | lookup_addr=%x idx=%d tag=%x word_off=%d byte_off=%d | array_meta=%x array_data=%x | wb_v=%d wb_addr=%x wb_data=%x | line_in_v=%d line_in_addr=%x line_in_data=%x\n",
-    //         state.asUInt,
-    //         io.ready,
-    //         io.done,
-    //         io.miss,
-    //         io.start,
-    //         current_mem_req.write,
-    //         current_mem_req.op.asUInt,
-    //         current_mem_req.address,
-    //         current_mem_req.write_data,
-    //         lookup_address_reg,
-    //         cache_index,
-    //         cache_tag,
-    //         word_offset,
-    //         byte_offset,
-    //         meta_out.asUInt,
-    //         data_out,
-    //         io.wb,
-    //         io.wb_addr,
-    //         io.wb_data,
-    //         io.line_valid,
-    //         io.line_addr,
-    //         io.line_result
-    //     )
-    // }
+    
 }
