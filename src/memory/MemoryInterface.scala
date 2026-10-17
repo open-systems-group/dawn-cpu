@@ -14,6 +14,14 @@ class MemReq extends Bundle {
   val write = Bool()
 }
 
+class CacheMeta(tagWidth: Int,timeWidth: Int) extends Bundle {
+  val valid = Bool()
+  val dirty = Bool()
+  val tag   = UInt(tagWidth.W)
+  val last_time = UInt(timeWidth.W)
+  
+}
+
 class MemoryInterface(lineWidth: Int = 128) extends Module {
   val io = IO(new Bundle {
     val icache_req = Input(new MemReq)

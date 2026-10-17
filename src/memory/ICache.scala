@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import _root_.circt.stage.ChiselStage
 import chisel3.util.experimental.loadMemoryFromFileInline
+import chisel3.util.random.LFSR
 
 
 
@@ -34,6 +35,11 @@ class ICache(lineWidth: Int = 128) extends Module {
     val LINE_WIDTH_WORDS = lineWidth/32
     val LOG_CACHE_SETS = log2Up(CACHE_SETS)
     val LOG_LINE_WIDTH_WORDS = log2Up(LINE_WIDTH_WORDS)
+    val WAYS = 1
+    val TAG_WIDTH = 32 - LOG_CACHE_SETS - LOG_LINE_WIDTH_WORDS - 2
+    val LRU_WIDTH = 16
+    val POLICYS = 2
+    val LOG_POLICY_TEST_INTERVAL = 6
     val byte_offset = Wire(UInt(2.W))
     val cache_index = Wire(UInt(LOG_CACHE_SETS.W))
     val word_offset = Wire(UInt(LOG_LINE_WIDTH_WORDS.W))
@@ -55,8 +61,9 @@ class ICache(lineWidth: Int = 128) extends Module {
 
 
 
-    val meta_array = SyncReadMem(CACHE_SETS, UInt(((32-LOG_CACHE_SETS-LOG_LINE_WIDTH_WORDS)).W)) // status(2bit) + tag
-    val data_array = SyncReadMem(CACHE_SETS, UInt((32 * LINE_WIDTH_WORDS).W))
+    val p_hit = Seq.fill(POLICYS)(RegInit(0.S(32.W)))
+    val meta_array = Seq.fill(WAYS)(SyncReadMem(CACHE_SETS, new CacheMeta(TAG_WIDTH,LRU_WIDTH)))
+    val data_array = Seq.fill(WAYS)(SyncReadMem(CACHE_SETS, UInt((32 * LINE_WIDTH_WORDS).W)))
     val state = RegInit(CacheState.IDLE)
     val current_mem_req = RegInit(0.U.asTypeOf(new MemReq))
     val fire = io.ready && io.start
@@ -69,28 +76,100 @@ class ICache(lineWidth: Int = 128) extends Module {
     cache_tag := RegNext(getTag(lookup_address))
     line_addr := RegNext(getLineAddr(lookup_address))
     val read_enable = state === CacheState.IDLE || state === CacheState.LOOKUP
-    val data_out = Wire(UInt((32 * LINE_WIDTH_WORDS).W))
-    data_out := data_array.read(cache_index, read_enable)  
 
+    val data_out_ways = VecInit(data_array.map(_.read(cache_index, read_enable)))
+    val meta_out_ways = VecInit(meta_array.map(_.read(cache_index, read_enable)))
 
+    val hit_ways = VecInit(meta_out_ways.map(m => m.valid && m.tag === cache_tag))
+    val hit = hit_ways.asUInt.orR
+    val hit_way  = if (WAYS == 1) 0.U else PriorityEncoder(hit_ways)
+
+    val data_out = data_out_ways(hit_way)
+    val meta_out = meta_out_ways(hit_way)
+
+    val policy =  RegInit(0.U(log2Up(POLICYS).W))
+    //NEED TO CHANGE IF MORE THAN 2 POLICY
+    when(p_hit(1) > p_hit(0)) {
+        policy :=1.U
+    }.otherwise{
+        policy:=0.U
+    }
+
+    val access_counter = RegInit(0.U(LRU_WIDTH.W))
+
+    when(io.start) { access_counter := access_counter + 1.U }
+    val lfsr = if (WAYS == 1) 0.U else LFSR(16)(log2Up(WAYS) - 1, 0)
+    val victim_way_reg = RegInit(0.U(log2Up(WAYS).W))
+
+    // that is awful
+    val lru_way =
+        if (WAYS == 1) 0.U
+        else meta_out_ways.zipWithIndex
+            .map { case (m, i) => (m.last_time, i.U(log2Up(WAYS).W)) }
+            .reduce { (a, b) =>
+                val a_older = a._1 <= b._1
+                (Mux(a_older, a._1, b._1), Mux(a_older, a._2, b._2))
+            }._2
+
+    // cache_index is not registered here, so the profiler needs the index that produced hit
+    val cache_index_reg = RegNext(cache_index)
+    val policy_profiler =  VecInit(Seq.tabulate(POLICYS)(i => cache_index_reg(LOG_POLICY_TEST_INTERVAL - 1, 0) === i.U))
+
+    val is_profiler = policy_profiler.asUInt.orR
+    val profile_policy = PriorityEncoder(policy_profiler)
+
+    val policy_victim = VecInit(lfsr, lru_way)                
+    val active_policy = Mux(is_profiler, profile_policy, policy)
+
+    val invalid_ways = VecInit(meta_out_ways.map(!_.valid))
+    val victim_sel =
+        if (WAYS == 1) 0.U
+        else Mux(invalid_ways.asUInt.orR, PriorityEncoder(invalid_ways), policy_victim(active_policy))
+    val victim_way = if (WAYS == 1) 0.U else Mux(state === CacheState.LOOKUP, victim_sel, victim_way_reg)
+    val evict_meta = meta_out_ways(victim_way)
+    val evict_data = data_out_ways(victim_way)
+
+    val data_wr_en = WireDefault(VecInit(Seq.fill(WAYS)(false.B)))
+    val data_wr_data = WireDefault(0.U((32 * LINE_WIDTH_WORDS).W))
+    val meta_wr_en  = WireDefault(VecInit(Seq.fill(WAYS)(false.B)))
+    val meta_wr_data = WireDefault(0.U.asTypeOf(new CacheMeta(TAG_WIDTH,LRU_WIDTH)))
+    val write_addr = getIndex(current_mem_req.address)
 
     io.done := false.B
     io.miss := false.B
     io.data := 0.U
 
-    val meta_out = meta_array.read(cache_index, read_enable) 
-    val status = meta_out(meta_out.getWidth-1, meta_out.getWidth-2) 
-    val tag = meta_out(meta_out.getWidth-3, 0)    
-    val hit = cache_tag === tag && status(1) === 1.U
     io.ready:= state === CacheState.IDLE || (state === CacheState.LOOKUP && hit) // or hit
     io.wb := false.B
-    io.wb_data := data_out
-    io.wb_addr := Cat(tag, cache_index, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
+    io.wb_data := evict_data
+    io.wb_addr := Cat(evict_meta.tag, cache_index, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
     io.line_addr := Cat(line_addr, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
 
     val words = VecInit(
     (0 until LINE_WIDTH_WORDS).map(i => data_out(32*i + 31, 32*i))
     )
+
+    when(io.start && access_counter.andR){
+        for(i <- 0 until POLICYS) {
+            p_hit(i) := p_hit(i) >> 2
+        }
+    }.elsewhen(policy_profiler(0)){
+        when(state === CacheState.LOOKUP) {
+            when(hit) {
+                p_hit(0) := p_hit(0) + 1.S
+            }.otherwise{
+                 p_hit(0) := p_hit(0) -1.S
+            }
+        }
+    }.elsewhen(policy_profiler(1)){
+        when(state === CacheState.LOOKUP) {
+            when(hit) {
+                p_hit(1) := p_hit(1) +1.S
+            }.otherwise{
+                p_hit(1) := p_hit(1) -1.S
+            }
+        }
+    }
 
 switch(state) {
     is(CacheState.IDLE) {
@@ -101,7 +180,7 @@ switch(state) {
     }
 
     is(CacheState.LOOKUP) {
-        when(cache_tag === tag && status(1) === 1.U) { // hit
+        when(hit) { // hit
 
             
 
@@ -144,7 +223,8 @@ switch(state) {
             }
 
         }.otherwise { // miss
-            when(status === "b11".U) { // valid + dirty → writeback first
+            victim_way_reg := victim_sel
+            when(evict_meta.valid && evict_meta.dirty) { // valid + dirty → writeback first
                 state := CacheState.WRITEBACK
             }.otherwise {             
                 state := CacheState.MISS
@@ -165,8 +245,13 @@ switch(state) {
                io.done := true.B
                   
             }.otherwise {
-                data_array.write(cache_index, io.line_result)
-                meta_array.write(cache_index, Cat("b10".U(2.W), cache_tag))//valid not dirty
+                data_wr_en(victim_way) := true.B
+                data_wr_data := io.line_result
+                meta_wr_en(victim_way) := true.B
+                meta_wr_data.valid := true.B
+                meta_wr_data.dirty := false.B//valid not dirty
+                meta_wr_data.tag := getTag(current_mem_req.address)
+                meta_wr_data.last_time := access_counter
                 val lwords = VecInit((0 until LINE_WIDTH_WORDS).map(i => io.line_result(32*i + 31, 32*i)))
                 val updated_word = lwords(word_offset)
                 switch(current_mem_req.op){
@@ -208,8 +293,8 @@ switch(state) {
         cache_index,
         cache_tag,
         word_offset,
-        status,
-        tag,
+        meta_out.valid,
+        meta_out.tag,
         data_out,
         io.data,
         io.done,
@@ -221,4 +306,9 @@ switch(state) {
         io.line_addr
     )
 }
+
+    for (w <- 0 until WAYS) {
+        when(data_wr_en(w)) { data_array(w).write(write_addr, data_wr_data) }
+        when(meta_wr_en(w)) { meta_array(w).write(write_addr, meta_wr_data) }
+    }
 }

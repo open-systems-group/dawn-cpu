@@ -47,8 +47,8 @@ class CacheArbiter(lineWidth: Int = 128,nCaches: Int = 2) extends Module {
     mem_req_accepted := false.B
   }
 
-  io.mem_req.valid := busy && !mem_req_accepted
-  io.mem_req.bits := latched_req
+  io.mem_req.valid := RegNext(busy && !mem_req_accepted, false.B) && !mem_req_accepted
+  io.mem_req.bits := RegNext(latched_req)
 
   for (i <- 0 until nCaches) {
     io.cache_req(i).ready := idle && (chosen === i.U)
