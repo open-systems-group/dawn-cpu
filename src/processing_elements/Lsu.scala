@@ -50,9 +50,9 @@ class Lsu() extends Module {
 
     io.ready := io.next_ready && !waiting_on_read && io.dcache_ready
 
-    io.broadcast_free_valid := RegNext(io.dcache_rd_out =/=0.U && io.dcache_valid)
-    io.broadcast_free_register := RegNext(io.dcache_rd_out)
-    io.broadcast_free_value := RegNext(io.dcache_data)
+    io.broadcast_free_valid := (io.dcache_rd_out =/=0.U && io.dcache_valid)
+    io.broadcast_free_register := (io.dcache_rd_out)
+    io.broadcast_free_value := (io.dcache_data)
 
     io.dcache_start := false.B
     io.dcache_wen := false.B
