@@ -59,7 +59,7 @@ class ReorderBuffer() extends Module {
 
     val empty = tail === head
 
-    val waiting_on_write = RegInit(false.B)
+    // val waiting_on_write = RegInit(false.B)
 
     io.write_value := 0.U
     io.write_address := 0.U
@@ -72,7 +72,7 @@ class ReorderBuffer() extends Module {
     when(io.write_complete) {
         // printf("[RB] Write Complete!\n");
 
-        waiting_on_write := false.B
+        // waiting_on_write := false.B
     }
 
     // printf(
@@ -84,12 +84,9 @@ class ReorderBuffer() extends Module {
     //     tail
     //   ).mode =/= WriteMode.Memory)
     // );
+    val retiring = !empty && buffer(tail).complete && (io.write_ready || buffer(tail).mode =/= WriteMode.Memory)
 
-    when(
-      !empty && (!waiting_on_write || io.write_complete) && buffer(tail).complete && (io.write_ready || buffer(
-        tail
-      ).mode =/= WriteMode.Memory)
-    ) {
+    when(retiring){
         // printf("[RB] Retiring! %d %d %d %d\n", tail, buffer(tail).rd, buffer(tail).value, buffer(tail).mode.asUInt);
 
         io.write_value := buffer(tail).value
@@ -97,9 +94,9 @@ class ReorderBuffer() extends Module {
         val entry_write_mode = buffer(tail).mode
         io.write_mode := entry_write_mode
 
-        when(entry_write_mode === WriteMode.Memory) {
-            waiting_on_write := false.B
-        }
+        // when(entry_write_mode === WriteMode.Memory) {
+        //     waiting_on_write := false.B
+        // }
 
         when(!io.valid) {
             full := false.B

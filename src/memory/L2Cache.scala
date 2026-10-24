@@ -8,6 +8,7 @@ class L2Cache(lineWidth: Int = 128) extends Module {
     val req = Flipped(Decoupled(new MemLineReq(lineWidth)))
     val mem_resp_in = Output(UInt(lineWidth.W))
     val mem_valid_in = Output(Bool())
+
     val mem_req = Decoupled(new MemLineReq(lineWidth))
     val mem_resp = Input(UInt(lineWidth.W))
     val mem_valid = Input(Bool())
@@ -52,7 +53,7 @@ class L2Cache(lineWidth: Int = 128) extends Module {
     val wb_data_reg = RegInit(0.U(lineWidth.W))
     val wb_addr_reg = RegInit(0.U(32.W))
     val hit = cache_tag === tag && status(1) === 1.U
-    io.req.ready := state === CacheState.IDLE || (state === CacheState.LOOKUP && hit && !current_mem_req.write)
+    io.req.ready := state === CacheState.IDLE 
 
     val want_fill = WireDefault(false.B)                        
     val want_wb = state === CacheState.WRITEBACK            
@@ -79,12 +80,8 @@ class L2Cache(lineWidth: Int = 128) extends Module {
 
         is(CacheState.LOOKUP) {
             when(hit) { // HIT
-                    when(io.req.valid){
-                        current_mem_req := io.req.bits
-                        state := CacheState.LOOKUP
-                    }.otherwise{
-                        state := CacheState.IDLE
-                    }
+             
+                state := CacheState.IDLE
 
                 when(current_mem_req.write) {
                     data_wr_en   := true.B

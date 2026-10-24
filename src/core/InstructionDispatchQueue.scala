@@ -44,9 +44,9 @@ class InstructionDispatchQueue() extends Module {
     })
 
     val queue = RegInit(VecInit(Seq.fill(8)(0.U.asTypeOf(new QueueEntry))))
-    val dependence_size = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+    val dependence_size = RegInit(VecInit(Seq.fill(32)(0.U(9.W))))
 
-    val full = queue(7.U).valid
+    val full = queue(7.U).valid && queue(6.U).valid
 
     // Dispatch
     def compare_entry(low: Int, high: Int): (UInt, Bool) = {

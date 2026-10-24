@@ -1,4 +1,4 @@
-__attribute__((naked)) void _start(void) {
+__attribute__((naked, section(".init"))) void _start(void) {
     __asm__ volatile(
         "li sp, 0x7000000\n"
         "call main\n"
